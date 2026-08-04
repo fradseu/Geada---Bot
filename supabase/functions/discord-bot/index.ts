@@ -44,6 +44,7 @@ import { handleVagaDesistir } from "./handlers/vagaDesistir.ts";
 import { handleVagaKickar } from "./handlers/vagaKickar.ts";
 import { handleBonusToggle } from "./handlers/bonusToggle.ts";
 import { PAGINA_PRIVACIDADE, PAGINA_TERMOS } from "./paginasLegais.ts";
+import { enviarFollowUp } from "./discord/rest.ts";
 
 const PUBLIC_KEY = Deno.env.get("DISCORD_PUBLIC_KEY") ?? "";
 
@@ -165,14 +166,37 @@ Deno.serve(async (req: Request) => {
     const { immediate, background } = await rotear(interaction);
 
     if (background) {
+      // Se o trabalho em background der erro, isso NÃO pode ficar silencioso
+      // (a interação já foi confirmada — sem isso, a mensagem original fica
+      // travada pra sempre, sem nenhum sinal do que aconteceu). Manda o erro
+      // como um aviso ephemeral direto no Discord, igual já fazíamos pro modal
+      // de título.
+      const executarComCapturaDeErro = async () => {
+        try {
+          await background();
+        } catch (err) {
+          console.error("Erro no background():", err);
+          try {
+            await enviarFollowUp(interaction.application_id, interaction.token, {
+              content: `⚠️ Erro interno ao processar sua ação:\n\`\`\`${
+                err instanceof Error ? err.stack ?? err.message : String(err)
+              }\`\`\``,
+              flags: 64,
+            });
+          } catch (err2) {
+            console.error("Erro ao avisar sobre falha do background:", err2);
+          }
+        }
+      };
+
       // deno-lint-ignore no-explicit-any
       const waitUntil = (globalThis as any).EdgeRuntime?.waitUntil;
       if (waitUntil) {
-        waitUntil(background());
+        waitUntil(executarComCapturaDeErro());
       } else {
         // Fora do runtime do Supabase (ex: rodando local sem EdgeRuntime) —
         // roda sem bloquear a resposta, só sem a garantia de não ser cortado.
-        background().catch((err) => console.error("Erro no background():", err));
+        executarComCapturaDeErro();
       }
     }
 
