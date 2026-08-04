@@ -1,0 +1,28 @@
+name: Deploy Edge Function
+
+# A integração nativa GitHub<->Supabase já aplica as migrations (supabase/migrations/*.sql)
+# sozinha a cada push na main. Esse workflow cuida só da Edge Function, que
+# essa integração não publica automaticamente.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - "supabase/config.toml"
+      - ".github/workflows/deploy.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy discord-bot function
+        run: supabase functions deploy discord-bot --project-ref "$SUPABASE_PROJECT_ID"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}

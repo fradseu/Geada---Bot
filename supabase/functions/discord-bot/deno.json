@@ -1,0 +1,7 @@
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "discord-interactions": "npm:discord-interactions@3",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2"
+  }
+}

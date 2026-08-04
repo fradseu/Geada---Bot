@@ -1,0 +1,373 @@
+// ui.ts - Builders de tela compartilhados entre handlers (equivalente às
+// funções auxiliares soltas no fim do index.js do v1: montarPayloadPasso1,
+// montarBotoesBonus, atualizarComponentesPainel, renderizarPasso2/3).
+
+import { ATIVIDADES, BONUS, CIDADES, FUNCOES, ZONAS } from "../config.ts";
+import { buscarMembro, nomeExibicaoMembro } from "../discord/rest.ts";
+import {
+  ActionRowComponent,
+  ButtonStyle,
+  InteractionCallbackData,
+  SelectOption,
+  TextInputStyle,
+  actionRow,
+} from "../discord/types.ts";
+import { DadosWizard } from "../db/ptWizard.ts";
+import {
+  EmojiResolvido,
+  emojiParaComponente,
+  parseClasseComEmoji,
+} from "../domain/emoji.ts";
+import { listarJogadoresInscritos } from "../domain/vagas.ts";
+
+function opcoesParaSelect(opcoes: { label: string; value: string }[]): SelectOption[] {
+  return opcoes.map((o) => ({ label: o.label, value: o.value }));
+}
+
+// ---------------------------------------------------------------------------
+// PASSO 1
+// ---------------------------------------------------------------------------
+export function montarPayloadPasso1(dados: DadosWizard): InteractionCallbackData {
+  const menuAtividades = {
+    type: 3 as const,
+    custom_id: "config_atividade",
+    placeholder: "⚔️ Selecione as atividades (Multi-select)",
+    min_values: 1,
+    max_values: 4,
+    options: opcoesParaSelect(ATIVIDADES),
+  };
+
+  const menuCidades = {
+    type: 3 as const,
+    custom_id: "config_cidade",
+    placeholder: "📍 Selecione a Cidade de Encontro",
+    options: opcoesParaSelect(CIDADES),
+  };
+
+  const menuZonas = {
+    type: 3 as const,
+    custom_id: "config_zona",
+    placeholder: "🗺️ Selecione o Tipo de Zona (Amarela/Red/Black)",
+    options: opcoesParaSelect(ZONAS),
+  };
+
+  const botaoTitulo = {
+    type: 2 as const,
+    style: ButtonStyle.Secondary,
+    custom_id: "btn_definir_titulo",
+    label: dados.titulo ? "✏️ Editar Título" : "✏️ Definir Título (Opcional)",
+  };
+
+  const botaoAvancar = {
+    type: 2 as const,
+    style: ButtonStyle.Success,
+    custom_id: "btn_passo2",
+    label: "Avançar para Requisitos ➡️",
+  };
+
+  const tituloExibido = dados.titulo
+    ? `**${dados.titulo}**`
+    : "*(usando o título padrão 🔱 PROMPT DE CONTEÚDO)*";
+
+  return {
+    content:
+      `🛠️ **PASSO 1: Configuração Inicial**\n` +
+      `📌 Título: ${tituloExibido}\n\n` +
+      `Defina os parâmetros do conteúdo usando os menus abaixo e clique em Avançar:`,
+    components: [
+      actionRow(menuAtividades),
+      actionRow(menuCidades),
+      actionRow(menuZonas),
+      actionRow(botaoTitulo),
+      actionRow(botaoAvancar),
+    ],
+  };
+}
+
+export function montarModalTitulo(tituloAtual: string) {
+  return {
+    customId: "modal_titulo",
+    title: "Título da PT",
+    components: [
+      actionRow({
+        type: 4 as const,
+        custom_id: "input_titulo",
+        style: TextInputStyle.Short,
+        label: "Título da PT (opcional)",
+        placeholder: "Ex: FIXA P/ RECÉM-CHEGADOS (APENAS RECÉM-CHEGADOS)",
+        max_length: 150,
+        required: false,
+        value: tituloAtual || undefined,
+      }),
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// PASSO 2
+// ---------------------------------------------------------------------------
+const TIERS_ESPECIFICOS = [
+  "T4.1 Equivalente",
+  "T4.2 Equivalente",
+  "T4.3 Equivalente",
+  "T5.0 Equivalente",
+  "T6.0 Equivalente",
+  "T7.0 Equivalente",
+  "T8.0 Equivalente",
+];
+
+export function montarPayloadPasso2(dados: DadosWizard): InteractionCallbackData {
+  const rowBotoesTier = actionRow(
+    {
+      type: 2 as const,
+      custom_id: "tier_true",
+      label: "Com limite de Tier",
+      style: dados.temTier === true ? ButtonStyle.Primary : ButtonStyle.Secondary,
+    },
+    {
+      type: 2 as const,
+      custom_id: "tier_false",
+      label: "Tier Livre",
+      style: dados.temTier === false ? ButtonStyle.Primary : ButtonStyle.Secondary,
+    },
+  );
+
+  const rows: ActionRowComponent[] = [rowBotoesTier];
+
+  if (dados.temTier === true) {
+    rows.push(
+      actionRow({
+        type: 3 as const,
+        custom_id: "select_tier_especifico",
+        placeholder: "📊 Selecione o Tier",
+        options: TIERS_ESPECIFICOS.map((t) => ({ label: t, value: t })),
+      }),
+    );
+  }
+
+  rows.push(
+    actionRow(
+      {
+        type: 2 as const,
+        custom_id: "skip_true",
+        label: "Precisa Set Skip (T4)",
+        style: dados.precisaSkip === true ? ButtonStyle.Danger : ButtonStyle.Secondary,
+      },
+      {
+        type: 2 as const,
+        custom_id: "skip_false",
+        label: "Não precisa de Skip",
+        style: dados.precisaSkip === false ? ButtonStyle.Success : ButtonStyle.Secondary,
+      },
+    ),
+  );
+
+  const pronto = dados.temTier !== null && dados.precisaSkip !== null;
+
+  rows.push(
+    actionRow({
+      type: 2 as const,
+      custom_id: "btn_passo3",
+      label: "Avançar para Montar a PT ➡️",
+      style: ButtonStyle.Success,
+      disabled: !pronto,
+    }),
+  );
+
+  const setSkipTexto =
+    dados.precisaSkip === null ? "Pendente" : dados.precisaSkip ? "Obrigatório T4+" : "Dispensado";
+
+  return {
+    content:
+      `🛠 **PASSO 2: Requisitos de Entrada**\n` +
+      `• Tier Mínimo: **${dados.tier}**\n` +
+      `• Set de Skip: **${setSkipTexto}**`,
+    components: rows,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// PASSO 3
+// ---------------------------------------------------------------------------
+export function montarPayloadPasso3Selecao(
+  emojisResolvidos: Map<string, EmojiResolvido>,
+): InteractionCallbackData {
+  const opcoes: SelectOption[] = FUNCOES.slice(0, 25).map((classe) => {
+    const { nome, emoji } = parseClasseComEmoji(classe, emojisResolvidos);
+    return { label: nome, value: classe, emoji: emojiParaComponente(emoji) };
+  });
+
+  return {
+    content:
+      `🛠️ **PASSO 3: Seleção de Composição da PT**\n` +
+      `Escolha no menu abaixo **quais classes** farão parte deste conteúdo (Máximo de 25 exibidas):`,
+    components: [
+      actionRow({
+        type: 3 as const,
+        custom_id: "selecionar_classes_da_pt",
+        placeholder: "🧙‍♂️ Quais classes terão vagas nesta PT?",
+        min_values: 1,
+        max_values: opcoes.length,
+        options: opcoes,
+      }),
+    ],
+  };
+}
+
+export function montarPayloadPasso3Painel(
+  dados: DadosWizard,
+  emojisResolvidos: Map<string, EmojiResolvido>,
+): InteractionCallbackData {
+  const classesAtivas = dados.classesAtivas ?? [];
+  const classeFocada =
+    dados.classeFocada && classesAtivas.includes(dados.classeFocada)
+      ? dados.classeFocada
+      : classesAtivas[0];
+
+  const { nome: nomeClasseFocoTexto } = parseClasseComEmoji(classeFocada, emojisResolvidos);
+
+  const linhasBotoes: ActionRowComponent[] = [];
+  let linhaAtual: ReturnType<typeof actionRow>["components"] = [];
+
+  for (const classe of classesAtivas) {
+    const qtd = dados.funcoes[classe] ?? 1;
+    const { nome, emoji } = parseClasseComEmoji(classe, emojisResolvidos);
+
+    linhaAtual.push({
+      type: 2 as const,
+      custom_id: `focar_cl_${classe}`,
+      label: `${nome} (${qtd})`,
+      style: classe === classeFocada ? ButtonStyle.Primary : ButtonStyle.Secondary,
+      emoji: emojiParaComponente(emoji),
+    });
+
+    if (linhaAtual.length === 5) {
+      linhasBotoes.push(actionRow(...linhaAtual));
+      linhaAtual = [];
+    }
+  }
+  if (linhaAtual.length > 0 && linhasBotoes.length < 3) {
+    linhasBotoes.push(actionRow(...linhaAtual));
+  }
+
+  const qtdAtualFoco = dados.funcoes[classeFocada] ?? 1;
+
+  linhasBotoes.push(
+    actionRow(
+      {
+        type: 2 as const,
+        custom_id: "painel_rem_1",
+        label: `➖ Diminuir ${nomeClasseFocoTexto}`,
+        style: ButtonStyle.Danger,
+        disabled: qtdAtualFoco <= 0,
+      },
+      {
+        type: 2 as const,
+        custom_id: "painel_add_1",
+        label: `➕ Aumentar ${nomeClasseFocoTexto}`,
+        style: ButtonStyle.Success,
+      },
+    ),
+  );
+
+  linhasBotoes.push(
+    actionRow(
+      {
+        type: 2 as const,
+        custom_id: "btn_voltar_classes",
+        label: "🔄 Mudar Classes",
+        style: ButtonStyle.Secondary,
+      },
+      {
+        type: 2 as const,
+        custom_id: "btn_gerar_painel_final",
+        label: "🚀 GERAR PAINEL FINAL",
+        style: ButtonStyle.Success,
+      },
+    ),
+  );
+
+  return {
+    content:
+      `🛠️ **PASSO 3: Painel de Vagas da PT**\n` +
+      `Selecione a classe nos botões abaixo para ver os controles de ajuste individual:\n\n` +
+      `➡️ **Modificando agora:** ${parseClasseComEmoji(classeFocada, emojisResolvidos).nome}\n`,
+    components: linhasBotoes,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// PAINEL PÚBLICO (bônus + reconstrução de componentes após inscrição/kick)
+// ---------------------------------------------------------------------------
+export function montarBotoesBonus(): ActionRowComponent {
+  return actionRow(
+    ...BONUS.map((b) => ({
+      type: 2 as const,
+      custom_id: `bonus_${b.value}`,
+      label: b.label,
+      style: ButtonStyle.Secondary,
+      emoji: { name: b.emoji },
+    })),
+  );
+}
+
+// Reconstrói os componentes do painel público (dropdown de inscrição + Sair da
+// PT + bônus + dropdown secreto de kick) depois de qualquer alteração nas
+// linhas de vaga. `opcoesClasse` vem direto do snapshot da própria interação
+// (interaction.message.components[0].components[0].options), igual o v1 fazia.
+export async function atualizarComponentesPainel(
+  linhas: string[],
+  opcoesClasse: SelectOption[],
+  guildId: string | undefined,
+): Promise<ActionRowComponent[]> {
+  const componentes: ActionRowComponent[] = [];
+
+  componentes.push(
+    actionRow({
+      type: 3 as const,
+      custom_id: "vaga_publica_inscrever",
+      placeholder: "Selecione sua classe para entrar nesta PT",
+      options: opcoesClasse,
+    }),
+  );
+
+  componentes.push(
+    actionRow({
+      type: 2 as const,
+      custom_id: "vaga_publica_desistir",
+      label: "❌ Sair da PT",
+      style: ButtonStyle.Danger,
+    }),
+  );
+
+  componentes.push(montarBotoesBonus());
+
+  const jogadores = listarJogadoresInscritos(linhas);
+
+  if (jogadores.length > 0) {
+    const opcoesKick: SelectOption[] = [];
+    for (const { mention, cargo } of jogadores) {
+      const idBruto = mention.replace(/[<@>]/g, "");
+      let nomeExibicao = idBruto;
+
+      if (guildId) {
+        const membro = await buscarMembro(guildId, idBruto);
+        nomeExibicao = nomeExibicaoMembro(membro, idBruto);
+      }
+
+      const rotulo = cargo ? `${nomeExibicao} — ${cargo}` : nomeExibicao;
+      opcoesKick.push({ label: rotulo.slice(0, 100), value: mention });
+    }
+
+    componentes.push(
+      actionRow({
+        type: 3 as const,
+        custom_id: "vaga_publica_kickar",
+        placeholder: "⚙️ Gerenciar PT: Kickar jogador (Apenas Líder)",
+        options: opcoesKick,
+      }),
+    );
+  }
+
+  return componentes;
+}

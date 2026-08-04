@@ -1,0 +1,16 @@
+# Segredos - NUNCA commitar
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+
+# Supabase CLI (arquivos locais/temporários, não fazem parte do projeto)
+supabase/.temp/
+supabase/.branches/
+
+# Editor / SO
+.vscode/
+.DS_Store
+Thumbs.db
