@@ -380,21 +380,21 @@ export async function atualizarComponentesPainel(
     .split("\n")
     .some((linha) => linha.startsWith(MARCADOR_SALA_VOZ));
 
-  componentes.push(
-    actionRow(
-      {
-        type: 2 as const,
-        custom_id: "vaga_publica_desistir",
-        label: "❌ Sair da PT",
-        style: ButtonStyle.Danger,
-      },
-      {
-        type: 2 as const,
-        custom_id: "sala_voz_toggle",
-        label: temSalaDeVoz ? "🔒 Fechar Sala de Voz" : "🔊 Criar Sala de Voz",
-        style: temSalaDeVoz ? ButtonStyle.Secondary : ButtonStyle.Primary,
-      },
-    ),
+  // Essa linha (Sair da PT + Sala de Voz) vai por ÚLTIMA — só monta agora,
+  // empurra pro final da lista de componentes depois do resto.
+  const rowDesistirESala = actionRow(
+    {
+      type: 2 as const,
+      custom_id: "vaga_publica_desistir",
+      label: "❌ Sair da PT",
+      style: ButtonStyle.Danger,
+    },
+    {
+      type: 2 as const,
+      custom_id: "sala_voz_toggle",
+      label: temSalaDeVoz ? "🔒 Fechar Sala de Voz" : "🔊 Criar Sala de Voz",
+      style: temSalaDeVoz ? ButtonStyle.Secondary : ButtonStyle.Primary,
+    },
   );
 
   componentes.push(montarBotoesBonus());
@@ -425,6 +425,8 @@ export async function atualizarComponentesPainel(
       }),
     );
   }
+
+  componentes.push(rowDesistirESala);
 
   return componentes;
 }

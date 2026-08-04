@@ -172,8 +172,8 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         embeds: [embedVagas],
         components: [
           actionRow(dropdownPublico),
-          actionRow(btnDesistir, btnSalaVoz),
           montarBotoesBonus(),
+          actionRow(btnDesistir, btnSalaVoz),
         ],
       });
 
