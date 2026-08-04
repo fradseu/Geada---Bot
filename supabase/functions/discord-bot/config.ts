@@ -120,7 +120,7 @@ export const DIFICULDADES_VALUE: DificuldadeValor[] = [
 
   // --- Atividades ---
   { label: "DG Fixa", value: 0.2 }, // Instanciada, não pode ser invadida
-  { label: "Spec de arma", value: 0.3 }, // Normalmente feito em conteúdo instanciado/seguro
+  { label: "Spec de arma", value: 0.1 }, // Normalmente feito em conteúdo instanciado/seguro
   { label: "Baús Azul", value: 0.2 }, // Baixo valor, raramente em black profunda
   { label: "Apagas", value: 0.35 }, // Farm repetitivo, geralmente não busca PvP
   { label: "Guerra de Facção", value: 0.5 }, // PvP organizado, mas com suporte de facção
