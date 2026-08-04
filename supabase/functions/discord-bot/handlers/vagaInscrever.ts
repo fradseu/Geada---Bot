@@ -10,7 +10,12 @@ import {
   liberarLinha,
   preencherLinha,
 } from "../domain/vagas.ts";
-import { HandlerResult, extrairOpcoesDropdownInscricao } from "./context.ts";
+import {
+  HandlerResult,
+  extrairLinhasVagasDoEmbed,
+  extrairOpcoesDropdownInscricao,
+  reconstruirEmbedVagas,
+} from "./context.ts";
 import { atualizarComponentesPainel } from "./ui.ts";
 
 export function handleVagaInscrever(interaction: DiscordInteraction): HandlerResult {
@@ -30,9 +35,10 @@ export function handleVagaInscrever(interaction: DiscordInteraction): HandlerRes
       const mapaEmojis = montarMapaEmojis(emojisGuilda);
 
       // Libera a vaga individual que o jogador ocupava antes (se houver
-      // alguma). ⚠️ Nunca mexe na linha do Criador, mesmo se o Criador for
-      // quem está se inscrevendo.
-      const linhas = mensagem.content.split("\n").map((linha) =>
+      // alguma). A lista de vagas mora na description do Embed agora, não
+      // no content. ⚠️ Nunca mexe na linha do Criador (defensivo — ela nem
+      // vive mais aqui, mas não custa manter a checagem).
+      const linhas = extrairLinhasVagasDoEmbed(mensagem).map((linha) =>
         !ehLinhaCriador(linha) && linha.includes(userMention) ? liberarLinha(linha) : linha
       );
 
@@ -50,10 +56,15 @@ export function handleVagaInscrever(interaction: DiscordInteraction): HandlerRes
       linhas[indiceVagaVazia] = preencherLinha(vagaFormatada, userMention);
 
       const linhasFinais = atualizarResumoVagas(linhas);
-      const novosComponentes = await atualizarComponentesPainel(linhasFinais, opcoesClasse, guildId);
+      const novosComponentes = await atualizarComponentesPainel(
+        linhasFinais,
+        mensagem.content,
+        opcoesClasse,
+        guildId,
+      );
 
       await editarMensagem(canalId, mensagem.id, {
-        content: linhasFinais.join("\n"),
+        embeds: [reconstruirEmbedVagas(mensagem, linhasFinais)],
         components: novosComponentes,
       });
     },

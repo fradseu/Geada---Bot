@@ -3,14 +3,20 @@ import { deferredUpdate, reply } from "../discord/responses.ts";
 import { editarMensagem } from "../discord/rest.ts";
 import { DiscordInteraction, getInteractionUserId } from "../discord/types.ts";
 import { atualizarResumoVagas, ehLinhaCriador, liberarLinha } from "../domain/vagas.ts";
-import { HandlerResult, extrairOpcoesDropdownInscricao } from "./context.ts";
+import {
+  HandlerResult,
+  extrairLinhasVagasDoEmbed,
+  extrairOpcoesDropdownInscricao,
+  reconstruirEmbedVagas,
+} from "./context.ts";
 import { atualizarComponentesPainel } from "./ui.ts";
 
 export function handleVagaDesistir(interaction: DiscordInteraction): HandlerResult {
   const userMention = `<@${getInteractionUserId(interaction)}>`;
   const mensagem = interaction.message!;
+  const linhasVagasAtuais = extrairLinhasVagasDoEmbed(mensagem);
 
-  if (!mensagem.content.includes(userMention)) {
+  if (!linhasVagasAtuais.some((linha) => linha.includes(userMention))) {
     return { immediate: reply("⚠️ Você não está inscrito nesta PT!", { ephemeral: true }) };
   }
 
@@ -21,16 +27,21 @@ export function handleVagaDesistir(interaction: DiscordInteraction): HandlerResu
   return {
     immediate: deferredUpdate(),
     background: async () => {
-      // ⚠️ Nunca mexe na linha do Criador, mesmo se o Criador for quem está saindo
-      const linhas = mensagem.content.split("\n").map((linha) =>
+      // ⚠️ Nunca mexe na linha do Criador (defensivo — ela não vive mais aqui)
+      const linhas = linhasVagasAtuais.map((linha) =>
         !ehLinhaCriador(linha) && linha.includes(userMention) ? liberarLinha(linha) : linha
       );
 
       const linhasFinais = atualizarResumoVagas(linhas);
-      const novosComponentes = await atualizarComponentesPainel(linhasFinais, opcoesClasse, guildId);
+      const novosComponentes = await atualizarComponentesPainel(
+        linhasFinais,
+        mensagem.content,
+        opcoesClasse,
+        guildId,
+      );
 
       await editarMensagem(canalId, mensagem.id, {
-        content: linhasFinais.join("\n"),
+        embeds: [reconstruirEmbedVagas(mensagem, linhasFinais)],
         components: novosComponentes,
       });
     },

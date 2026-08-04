@@ -1,6 +1,12 @@
 // painelFinal.ts - Gera o painel público (equivalente ao "PASSO FINAL:
 // ENVIAR O PAINEL DE INSCRIÇÃO PÚBLICO" do v1).
 //
+// A lista de vagas vive na DESCRIPTION de um Embed (limite de 4096
+// caracteres), não no content da mensagem (limite de 2000) — com muitas
+// classes/vagas selecionadas, o texto cresce rápido e estourava o limite do
+// content. O content fica só com cabeçalho fixo (título, criador, atividade,
+// requisitos, @everyone), que nunca cresce com o número de vagas.
+//
 // Confirma o clique IMEDIATAMENTE (deferredUpdate) e faz todo o trabalho
 // pesado (ler wizard, buscar emojis, criar tópico, enviar mensagem, apagar
 // wizard) em background — qualquer uma dessas chamadas sozinha já pode passar
@@ -34,6 +40,7 @@ import { HandlerResult } from "./context.ts";
 import { montarBotoesBonus } from "./ui.ts";
 
 const SESSAO_EXPIRADA = "⚠️ Sessão expirada — use /conteudo de novo pra começar.";
+const LIMITE_EMBED_DESCRIPTION = 4096;
 
 export function handleGerarPainelFinal(interaction: DiscordInteraction): HandlerResult {
   const liderId = getInteractionUserId(interaction);
@@ -63,13 +70,13 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
       const emojisGuilda = guildId ? await buscarEmojisDaGuilda(guildId) : [];
       const mapaEmojis = montarMapaEmojis(emojisGuilda);
 
-      let textoVagas = "";
+      let linhasVagas: string[] = [];
       const opcoesDropdown: SelectOption[] = [];
 
       for (const [classe, maximo] of vagasFiltradas) {
         // Uma linha por vaga individual — dá pra ver exatamente quem ocupa
         // qual vaga + bônus de cada um.
-        textoVagas += gerarLinhasDaFuncao(classe, maximo, mapaEmojis).join("\n") + "\n";
+        linhasVagas = linhasVagas.concat(gerarLinhasDaFuncao(classe, maximo, mapaEmojis));
 
         const { nome, emoji } = parseClasseComEmoji(classe, mapaEmojis);
         opcoesDropdown.push({
@@ -87,7 +94,7 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
           ? `🗓️ **Quando:** ${dados.data || "A definir"} às ${dados.hora || "A definir"}\n`
           : "";
 
-      const textoFinalPainel =
+      const conteudoFinal = aplicarEmojisNoTexto(
         `**${tituloFinal}**\n` +
         `👑 Criador: <@${liderId}>\n` +
         `📋 **Atividade:** ${dados.atividades.join(" + ")}\n` +
@@ -97,9 +104,9 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         `\n⚔️ **REQUISITOS MÍNIMOS:**\n` +
         `• **Builds tier:** ${dados.tier}\n` +
         `• **Set de Skip:** ${dados.precisaSkip ? "Obrigatório Mínimo T4" : "Dispensado"}\n\n` +
-        `📝 **INSCRIÇÕES ABERTAS:**\n\n${textoVagas}\n` +
         `💬 Escolha seu papel no dropdown abaixo. Caso desista da vaga, clique no botão ❌ Sair da PT.\n` +
-        `@everyone`;
+        `@everyone`,
+      );
 
       const dropdownPublico = {
         type: 3 as const,
@@ -123,28 +130,29 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
       };
 
       const dificuldadeInfo = calcularDificuldade(dados);
-      const embeds: DiscordEmbed[] = dificuldadeInfo
-        ? [{ image: { url: dificuldadeInfo.value } }]
-        : [];
 
-      const linhasComResumo = atualizarResumoVagas(
-        aplicarEmojisNoTexto(textoFinalPainel).split("\n"),
-      );
-      const conteudoFinal = linhasComResumo.join("\n");
+      const linhasVagasComResumo = atualizarResumoVagas(linhasVagas);
+      const descriptionEmbed = aplicarEmojisNoTexto(linhasVagasComResumo.join("\n"));
 
-      // O Discord recusa qualquer mensagem com mais de 2000 caracteres. Com
-      // muitas classes/vagas selecionadas isso estoura fácil (cada linha de
-      // vaga com emoji customizado tem uns 50-60 caracteres). Avisa ANTES de
-      // criar o tópico e tentar enviar, em vez de deixar quebrar no meio.
-      if (conteudoFinal.length > 2000) {
+      // O Discord recusa qualquer embed com description maior que 4096
+      // caracteres. Avisa ANTES de criar o tópico e tentar enviar, em vez de
+      // deixar quebrar no meio (e sem deixar tópico órfão pra trás).
+      if (descriptionEmbed.length > LIMITE_EMBED_DESCRIPTION) {
         await enviarFollowUp(applicationId, token, {
           content:
-            `⚠️ O painel ficou grande demais pro Discord (${conteudoFinal.length}/2000 caracteres). ` +
+            `⚠️ A lista de vagas ficou grande demais pro Discord ` +
+            `(${descriptionEmbed.length}/${LIMITE_EMBED_DESCRIPTION} caracteres). ` +
             `Volta no "🔄 Mudar Classes" e reduz o número de classes/vagas dessa PT.`,
           flags: 64,
         });
         return;
       }
+
+      const embedVagas: DiscordEmbed = {
+        title: "📝 Inscrições Abertas",
+        description: descriptionEmbed,
+      };
+      if (dificuldadeInfo) embedVagas.image = { url: dificuldadeInfo.value };
 
       // Cria o tópico ANTES de enviar o painel, e manda o painel DENTRO dele
       // — se der erro (ex: canal não suporta tópicos), cai de volta pro canal normal.
@@ -158,7 +166,7 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
 
       await enviarMensagem(canalDestinoId, {
         content: conteudoFinal,
-        embeds,
+        embeds: [embedVagas],
         components: [
           actionRow(dropdownPublico),
           actionRow(btnDesistir, btnSalaVoz),

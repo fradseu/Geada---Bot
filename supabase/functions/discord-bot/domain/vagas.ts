@@ -91,20 +91,15 @@ export function contarVagas(linhas: string[]): { preenchidas: number; total: num
   return { preenchidas, total };
 }
 
-// Recalcula e (re)insere a linha "📊 Vagas: (x/y)" logo abaixo do cabeçalho
-// "INSCRIÇÕES ABERTAS". Chamado toda vez que alguém entra/sai/é removido de
-// uma vaga, pra manter o contador sempre atualizado.
+// Recalcula e (re)insere a linha "📊 Vagas: (x/y)" no topo das linhas de vaga
+// (essas linhas vivem sozinhas na description do Embed — o título "Inscrições
+// Abertas" já é o embed.title, não precisa mais achar esse cabeçalho aqui).
+// Chamado toda vez que alguém entra/sai/é removido de uma vaga.
 export function atualizarResumoVagas(linhas: string[]): string[] {
   const semResumo = linhas.filter((linha) => !linha.startsWith(MARCADOR_RESUMO_VAGAS));
   const { preenchidas, total } = contarVagas(semResumo);
   const linhaResumo = `${MARCADOR_RESUMO_VAGAS} (${preenchidas}/${total})`;
-
-  const indiceInscricoes = semResumo.findIndex((linha) => linha.includes("INSCRIÇÕES ABERTAS"));
-  if (indiceInscricoes === -1) return linhas; // cabeçalho não encontrado, não mexe
-
-  const novasLinhas = [...semResumo];
-  novasLinhas.splice(indiceInscricoes + 1, 0, linhaResumo);
-  return novasLinhas;
+  return [linhaResumo, "", ...semResumo];
 }
 
 export interface JogadorInscrito {

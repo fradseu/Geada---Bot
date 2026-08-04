@@ -148,6 +148,7 @@ export interface DiscordInteraction {
     id: string;
     content: string;
     components?: ActionRowComponent[];
+    embeds?: DiscordEmbed[];
   };
 }
 

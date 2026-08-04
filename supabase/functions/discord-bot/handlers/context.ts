@@ -4,7 +4,7 @@
 // `background`, quando existe, roda DEPOIS de responder (edição de mensagem,
 // chamadas REST extras, etc) — a function chama isso via EdgeRuntime.waitUntil()
 // no index.ts, pra não cortar o trabalho assim que a resposta HTTP sai.
-import { DiscordInteraction, InteractionResponse, SelectOption } from "../discord/types.ts";
+import { DiscordEmbed, DiscordInteraction, InteractionResponse, SelectOption } from "../discord/types.ts";
 
 export interface HandlerResult {
   immediate: InteractionResponse;
@@ -27,4 +27,24 @@ export function extrairOpcoesDropdownInscricao(
     | { options?: SelectOption[] }
     | undefined;
   return primeiroComponente?.options ?? [];
+}
+
+// A lista de vagas vive na description do primeiro Embed da mensagem (não no
+// content — isso é o que permite ir além do limite de 2000 caracteres).
+export function extrairLinhasVagasDoEmbed(mensagem: DiscordInteraction["message"]): string[] {
+  const description = mensagem?.embeds?.[0]?.description ?? "";
+  return description.split("\n");
+}
+
+// Reconstrói o Embed preservando título/imagem, só trocando a lista de vagas.
+export function reconstruirEmbedVagas(
+  mensagem: DiscordInteraction["message"],
+  novasLinhasVagas: string[],
+): DiscordEmbed {
+  const embedAtual = mensagem?.embeds?.[0];
+  return {
+    title: embedAtual?.title ?? "📝 Inscrições Abertas",
+    description: novasLinhasVagas.join("\n"),
+    image: embedAtual?.image,
+  };
 }

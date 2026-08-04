@@ -356,8 +356,11 @@ export function montarBotoesBonus(): ActionRowComponent {
 // PT + bônus + dropdown secreto de kick) depois de qualquer alteração nas
 // linhas de vaga. `opcoesClasse` vem direto do snapshot da própria interação
 // (interaction.message.components[0].components[0].options), igual o v1 fazia.
+// `linhasVagas` vem da description do Embed; `conteudoAtual` é o content da
+// mensagem (onde vive a linha de Sala de Voz).
 export async function atualizarComponentesPainel(
-  linhas: string[],
+  linhasVagas: string[],
+  conteudoAtual: string,
   opcoesClasse: SelectOption[],
   guildId: string | undefined,
 ): Promise<ActionRowComponent[]> {
@@ -372,7 +375,9 @@ export async function atualizarComponentesPainel(
     }),
   );
 
-  const temSalaDeVoz = linhas.some((linha) => linha.startsWith(MARCADOR_SALA_VOZ));
+  const temSalaDeVoz = conteudoAtual
+    .split("\n")
+    .some((linha) => linha.startsWith(MARCADOR_SALA_VOZ));
 
   componentes.push(
     actionRow(
@@ -393,7 +398,7 @@ export async function atualizarComponentesPainel(
 
   componentes.push(montarBotoesBonus());
 
-  const jogadores = listarJogadoresInscritos(linhas);
+  const jogadores = listarJogadoresInscritos(linhasVagas);
 
   if (jogadores.length > 0) {
     const opcoesKick: SelectOption[] = [];

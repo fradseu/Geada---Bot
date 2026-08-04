@@ -3,7 +3,13 @@ import { deferredUpdate, reply } from "../discord/responses.ts";
 import { editarMensagem, enviarFollowUp } from "../discord/rest.ts";
 import { DiscordInteraction, getInteractionUserId } from "../discord/types.ts";
 import { atualizarResumoVagas, ehLinhaCriador, liberarLinha } from "../domain/vagas.ts";
-import { HandlerResult, extrairLiderIdDoCriador, extrairOpcoesDropdownInscricao } from "./context.ts";
+import {
+  HandlerResult,
+  extrairLiderIdDoCriador,
+  extrairLinhasVagasDoEmbed,
+  extrairOpcoesDropdownInscricao,
+  reconstruirEmbedVagas,
+} from "./context.ts";
 import { atualizarComponentesPainel } from "./ui.ts";
 
 export function handleVagaKickar(interaction: DiscordInteraction): HandlerResult {
@@ -27,12 +33,17 @@ export function handleVagaKickar(interaction: DiscordInteraction): HandlerResult
     immediate: deferredUpdate(),
     background: async () => {
       // ⚠️ Proteção extra além da já existente no dropdown de kick: nunca mexe na linha do Criador
-      const linhas = mensagem.content.split("\n").map((linha) =>
+      const linhas = extrairLinhasVagasDoEmbed(mensagem).map((linha) =>
         !ehLinhaCriador(linha) && linha.includes(jogadorParaKickar) ? liberarLinha(linha) : linha
       );
 
       const linhasFinais = atualizarResumoVagas(linhas);
-      const novosComponentes = await atualizarComponentesPainel(linhasFinais, opcoesClasse, guildId);
+      const novosComponentes = await atualizarComponentesPainel(
+        linhasFinais,
+        mensagem.content,
+        opcoesClasse,
+        guildId,
+      );
 
       await enviarFollowUp(applicationId, token, {
         content: `🥾 O jogador ${jogadorParaKickar} foi removido da PT com sucesso.`,
@@ -40,7 +51,7 @@ export function handleVagaKickar(interaction: DiscordInteraction): HandlerResult
       });
 
       await editarMensagem(canalId, mensagem.id, {
-        content: linhasFinais.join("\n"),
+        embeds: [reconstruirEmbedVagas(mensagem, linhasFinais)],
         components: novosComponentes,
       });
     },

@@ -5,7 +5,12 @@ import { editarMensagem } from "../discord/rest.ts";
 import { DiscordInteraction, getInteractionUserId } from "../discord/types.ts";
 import { BONUS } from "../config.ts";
 import { ehLinhaCriador } from "../domain/vagas.ts";
-import { HandlerResult, extrairOpcoesDropdownInscricao } from "./context.ts";
+import {
+  HandlerResult,
+  extrairLinhasVagasDoEmbed,
+  extrairOpcoesDropdownInscricao,
+  reconstruirEmbedVagas,
+} from "./context.ts";
 import { atualizarComponentesPainel } from "./ui.ts";
 
 export function handleBonusToggle(interaction: DiscordInteraction, valorBonus: string): HandlerResult {
@@ -14,7 +19,7 @@ export function handleBonusToggle(interaction: DiscordInteraction, valorBonus: s
 
   const userMention = `<@${getInteractionUserId(interaction)}>`;
   const mensagem = interaction.message!;
-  const linhasOriginais = mensagem.content.split("\n");
+  const linhasOriginais = extrairLinhasVagasDoEmbed(mensagem);
 
   const indiceLinha = linhasOriginais.findIndex(
     (linha) => !ehLinhaCriador(linha) && linha.includes(userMention),
@@ -48,10 +53,15 @@ export function handleBonusToggle(interaction: DiscordInteraction, valorBonus: s
         linhas[indiceLinha] = linhaAtual.trimEnd() + ` ${bonusInfo.emoji} `;
       }
 
-      const novosComponentes = await atualizarComponentesPainel(linhas, opcoesClasse, guildId);
+      const novosComponentes = await atualizarComponentesPainel(
+        linhas,
+        mensagem.content,
+        opcoesClasse,
+        guildId,
+      );
 
       await editarMensagem(canalId, mensagem.id, {
-        content: linhas.join("\n"),
+        embeds: [reconstruirEmbedVagas(mensagem, linhas)],
         components: novosComponentes,
       });
     },
