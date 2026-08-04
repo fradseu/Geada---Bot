@@ -9,6 +9,7 @@ import { deferredUpdate, reply, showModal } from "../discord/responses.ts";
 import { editarRespostaOriginal, enviarFollowUp } from "../discord/rest.ts";
 import { DiscordInteraction, getInteractionUserId } from "../discord/types.ts";
 import { obterEstadoWizard, salvarEstadoWizard } from "../db/ptWizard.ts";
+import { dataHoraAtualBR, normalizarData, normalizarHora } from "../domain/dataHora.ts";
 import { HandlerResult } from "./context.ts";
 import { montarModalTitulo, montarPayloadPasso1, montarPayloadPasso2 } from "./ui.ts";
 
@@ -75,7 +76,14 @@ export async function handleBtnDefinirTitulo(interaction: DiscordInteraction): P
   const dados = await obterEstadoWizard(liderId);
   if (!dados) return { immediate: reply(SESSAO_EXPIRADA, { ephemeral: true }) };
 
-  const modal = montarModalTitulo(dados);
+  // Pré-preenche com hoje/agora se a pessoa ainda não tiver definido nada —
+  // só um valor default no formulário, não salva nada até ela confirmar.
+  const padrao = dataHoraAtualBR();
+  const modal = montarModalTitulo({
+    ...dados,
+    data: dados.data || padrao.data,
+    hora: dados.hora || padrao.hora,
+  });
   return { immediate: showModal(modal.customId, modal.title, modal.components) };
 }
 
@@ -97,9 +105,9 @@ export function handleModalTitulo(interaction: DiscordInteraction): HandlerResul
         return;
       }
 
-      dados.titulo = valorTitulo.trim();
-      dados.data = valorData.trim();
-      dados.hora = valorHora.trim();
+      dados.titulo = valorTitulo.trim().toUpperCase();
+      dados.data = normalizarData(valorData);
+      dados.hora = normalizarHora(valorHora);
       await salvarEstadoWizard(liderId, dados);
 
       const payload = montarPayloadPasso1(dados);
