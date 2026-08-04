@@ -43,6 +43,7 @@ import { handleVagaInscrever } from "./handlers/vagaInscrever.ts";
 import { handleVagaDesistir } from "./handlers/vagaDesistir.ts";
 import { handleVagaKickar } from "./handlers/vagaKickar.ts";
 import { handleBonusToggle } from "./handlers/bonusToggle.ts";
+import { PAGINA_PRIVACIDADE, PAGINA_TERMOS } from "./paginasLegais.ts";
 
 const PUBLIC_KEY = Deno.env.get("DISCORD_PUBLIC_KEY") ?? "";
 
@@ -126,6 +127,19 @@ async function rotear(interaction: DiscordInteraction): Promise<HandlerResult> {
 }
 
 Deno.serve(async (req: Request) => {
+  // Páginas legais (GET) — exigidas pelo Discord Developer Portal nos campos
+  // "URL dos termos de serviço" e "URL da política de privacidade" do app.
+  if (req.method === "GET") {
+    const pathname = new URL(req.url).pathname;
+    if (pathname.endsWith("/termos")) {
+      return new Response(PAGINA_TERMOS, { headers: { "content-type": "text/html; charset=utf-8" } });
+    }
+    if (pathname.endsWith("/privacidade")) {
+      return new Response(PAGINA_PRIVACIDADE, { headers: { "content-type": "text/html; charset=utf-8" } });
+    }
+    return new Response("Not Found", { status: 404 });
+  }
+
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
   }

@@ -9,13 +9,13 @@ export function handleTermos(): HandlerResult {
       type: 2 as const,
       style: ButtonStyle.Link,
       label: "📄 Termos de Serviço",
-      url: "https://seu-link-aqui.com/termos", // ⚠️ SUBSTITUA PELO SEU LINK REAL
+      url: "https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/discord-bot/termos",
     },
     {
       type: 2 as const,
       style: ButtonStyle.Link,
       label: "🔒 Política de Privacidade",
-      url: "https://seu-link-aqui.com/privacidade", // ⚠️ SUBSTITUA PELO SEU LINK REAL
+      url: "https://qroosefyfxefjrlhogrh.supabase.co/functions/v1/discord-bot/privacidade",
     },
   );
 
