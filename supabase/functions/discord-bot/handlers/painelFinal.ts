@@ -127,6 +127,25 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         ? [{ image: { url: dificuldadeInfo.value } }]
         : [];
 
+      const linhasComResumo = atualizarResumoVagas(
+        aplicarEmojisNoTexto(textoFinalPainel).split("\n"),
+      );
+      const conteudoFinal = linhasComResumo.join("\n");
+
+      // O Discord recusa qualquer mensagem com mais de 2000 caracteres. Com
+      // muitas classes/vagas selecionadas isso estoura fácil (cada linha de
+      // vaga com emoji customizado tem uns 50-60 caracteres). Avisa ANTES de
+      // criar o tópico e tentar enviar, em vez de deixar quebrar no meio.
+      if (conteudoFinal.length > 2000) {
+        await enviarFollowUp(applicationId, token, {
+          content:
+            `⚠️ O painel ficou grande demais pro Discord (${conteudoFinal.length}/2000 caracteres). ` +
+            `Volta no "🔄 Mudar Classes" e reduz o número de classes/vagas dessa PT.`,
+          flags: 64,
+        });
+        return;
+      }
+
       // Cria o tópico ANTES de enviar o painel, e manda o painel DENTRO dele
       // — se der erro (ex: canal não suporta tópicos), cai de volta pro canal normal.
       let canalDestinoId = dados.canalId;
@@ -137,12 +156,8 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         console.error("Erro ao criar o tópico do painel:", err);
       }
 
-      const linhasComResumo = atualizarResumoVagas(
-        aplicarEmojisNoTexto(textoFinalPainel).split("\n"),
-      );
-
       await enviarMensagem(canalDestinoId, {
-        content: linhasComResumo.join("\n"),
+        content: conteudoFinal,
         embeds,
         components: [
           actionRow(dropdownPublico),
