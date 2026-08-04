@@ -264,29 +264,32 @@ export function montarPayloadPasso3Painel(
 
   const { nome: nomeClasseFocoTexto } = parseClasseComEmoji(classeFocada, emojisResolvidos);
 
+  // Dropdown único pra escolher qual classe focar, em vez de um botão por
+  // classe: com muitas classes selecionadas (o Discord só aceita 25 no
+  // máximo), um botão por classe estourava fácil o limite de 5 linhas de
+  // componentes por mensagem. Um select cabe até 25 opções numa linha só.
   const linhasBotoes: ActionRowComponent[] = [];
-  let linhaAtual: ReturnType<typeof actionRow>["components"] = [];
 
-  for (const classe of classesAtivas) {
+  const opcoesFoco: SelectOption[] = classesAtivas.map((classe) => {
     const qtd = dados.funcoes[classe] ?? 1;
     const { nome, emoji } = parseClasseComEmoji(classe, emojisResolvidos);
-
-    linhaAtual.push({
-      type: 2 as const,
-      custom_id: `focar_cl_${classe}`,
-      label: `${nome} (${qtd})`,
-      style: classe === classeFocada ? ButtonStyle.Primary : ButtonStyle.Secondary,
+    return {
+      label: nome,
+      value: classe,
+      description: `Vagas atuais: ${qtd}`,
       emoji: emojiParaComponente(emoji),
-    });
+      default: classe === classeFocada,
+    };
+  });
 
-    if (linhaAtual.length === 5) {
-      linhasBotoes.push(actionRow(...linhaAtual));
-      linhaAtual = [];
-    }
-  }
-  if (linhaAtual.length > 0 && linhasBotoes.length < 3) {
-    linhasBotoes.push(actionRow(...linhaAtual));
-  }
+  linhasBotoes.push(
+    actionRow({
+      type: 3 as const,
+      custom_id: "focar_classe_select",
+      placeholder: "🎯 Escolha a classe pra ajustar a quantidade",
+      options: opcoesFoco,
+    }),
+  );
 
   const qtdAtualFoco = dados.funcoes[classeFocada] ?? 1;
 

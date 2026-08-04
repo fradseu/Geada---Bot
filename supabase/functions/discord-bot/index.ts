@@ -112,8 +112,8 @@ async function rotear(interaction: DiscordInteraction): Promise<HandlerResult> {
 
     // --- Passo 3 ---
     if (customId === "selecionar_classes_da_pt") return await handleSelecionarClasses(interaction);
-    if (customId.startsWith("focar_cl_")) {
-      return await handleFocarClasse(interaction, customId.replace("focar_cl_", ""));
+    if (customId === "focar_classe_select") {
+      return await handleFocarClasse(interaction, interaction.data?.values?.[0] ?? "");
     }
     if (customId === "painel_add_1" || customId === "painel_rem_1") {
       return await handleAjusteQuantidade(interaction, customId);
