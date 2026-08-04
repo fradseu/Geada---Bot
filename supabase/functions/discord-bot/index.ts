@@ -20,7 +20,8 @@ import {
 import { HandlerResult } from "./handlers/context.ts";
 import { handleComandoConteudo } from "./handlers/comandoConteudo.ts";
 import { handleTermos } from "./handlers/termos.ts";
-import { handleDiagnostico } from "./handlers/diagnostico.ts";
+// /diagnostico desativado por enquanto (deixa comentado, não apagado).
+// import { handleDiagnostico } from "./handlers/diagnostico.ts";
 import {
   handleBtnDefinirTitulo,
   handleBtnPasso2,
@@ -63,8 +64,8 @@ async function rotear(interaction: DiscordInteraction): Promise<HandlerResult> {
         return await handleComandoConteudo(interaction);
       case "termos":
         return handleTermos();
-      case "diagnostico":
-        return await handleDiagnostico(interaction);
+      // case "diagnostico":
+      //   return await handleDiagnostico(interaction);
       default:
         return { immediate: reply("Comando desconhecido.", { ephemeral: true }) };
     }

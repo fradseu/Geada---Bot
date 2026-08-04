@@ -30,11 +30,13 @@ const comandos = [
     description: "Exibe os Termos de Serviço e a Política de Privacidade do Bot.",
     type: 1,
   },
-  {
-    name: "diagnostico",
-    description: "Testa se os emojis do config.ts estão renderizando.",
-    type: 1,
-  },
+  // /diagnostico desativado por enquanto (deixa comentado, não apagado —
+  // é só descomentar aqui + em index.ts pra voltar a usar).
+  // {
+  //   name: "diagnostico",
+  //   description: "Testa se os emojis do config.ts estão renderizando.",
+  //   type: 1,
+  // },
 ];
 
 const res = await fetch(`https://discord.com/api/v10/applications/${applicationId}/commands`, {
