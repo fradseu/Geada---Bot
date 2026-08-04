@@ -20,8 +20,20 @@ import {
 } from "../domain/emoji.ts";
 import { MARCADOR_SALA_VOZ, listarJogadoresInscritos } from "../domain/vagas.ts";
 
-function opcoesParaSelect(opcoes: { label: string; value: string }[]): SelectOption[] {
-  return opcoes.map((o) => ({ label: o.label, value: o.value }));
+// `selecionados` marca quais opções já foram escolhidas antes — sem isso,
+// toda vez que a mensagem é redesenhada (ex: depois do modal de título), os
+// dropdowns aparecem visualmente "resetados" mesmo com o dado intacto no
+// banco, porque o Discord não lembra sozinho qual opção estava marcada numa
+// troca de conteúdo inteira da mensagem.
+function opcoesParaSelect(
+  opcoes: { label: string; value: string }[],
+  selecionados: string[] = [],
+): SelectOption[] {
+  return opcoes.map((o) => ({
+    label: o.label,
+    value: o.value,
+    default: selecionados.includes(o.value),
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -34,21 +46,21 @@ export function montarPayloadPasso1(dados: DadosWizard): InteractionCallbackData
     placeholder: "⚔️ Selecione as atividades (Multi-select)",
     min_values: 1,
     max_values: 4,
-    options: opcoesParaSelect(ATIVIDADES),
+    options: opcoesParaSelect(ATIVIDADES, dados.atividades),
   };
 
   const menuCidades = {
     type: 3 as const,
     custom_id: "config_cidade",
     placeholder: "📍 Selecione a Cidade de Encontro",
-    options: opcoesParaSelect(CIDADES),
+    options: opcoesParaSelect(CIDADES, dados.cidade ? [dados.cidade] : []),
   };
 
   const menuZonas = {
     type: 3 as const,
     custom_id: "config_zona",
     placeholder: "🗺️ Selecione o Tipo de Zona (Amarela/Red/Black)",
-    options: opcoesParaSelect(ZONAS),
+    options: opcoesParaSelect(ZONAS, dados.zona ? [dados.zona] : []),
   };
 
   const temDetalhes = dados.titulo || dados.data || dados.hora;
@@ -71,7 +83,7 @@ export function montarPayloadPasso1(dados: DadosWizard): InteractionCallbackData
     : "*(usando o título padrão 🔱 PROMPT DE CONTEÚDO)*";
   const dataHoraExibida =
     dados.data || dados.hora
-      ? `📅 ${dados.data || "(sem data)"} ⏰ ${dados.hora || "(sem hora)"}`
+      ? `${dados.data || "(sem data)"} às ${dados.hora || "(sem hora)"}`
       : "*(não definida)*";
 
   return {
@@ -81,10 +93,10 @@ export function montarPayloadPasso1(dados: DadosWizard): InteractionCallbackData
       `🗓️ Data/Hora: ${dataHoraExibida}\n\n` +
       `Defina os parâmetros do conteúdo usando os menus abaixo e clique em Avançar:`,
     components: [
+      actionRow(botaoTitulo),
       actionRow(menuAtividades),
       actionRow(menuCidades),
       actionRow(menuZonas),
-      actionRow(botaoTitulo),
       actionRow(botaoAvancar),
     ],
   };
