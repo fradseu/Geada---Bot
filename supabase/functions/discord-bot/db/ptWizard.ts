@@ -7,6 +7,8 @@ import { obterClienteSupabase } from "./client.ts";
 export interface DadosWizard {
   canalId: string;
   titulo: string;
+  data: string;
+  hora: string;
   atividades: string[];
   cidade: string;
   zona: string;
@@ -22,6 +24,8 @@ export function estadoInicial(canalId: string): DadosWizard {
   return {
     canalId,
     titulo: "",
+    data: "",
+    hora: "",
     atividades: [],
     cidade: "",
     zona: "",

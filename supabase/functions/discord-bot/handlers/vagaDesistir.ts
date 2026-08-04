@@ -2,7 +2,7 @@
 import { deferredUpdate, reply } from "../discord/responses.ts";
 import { editarMensagem } from "../discord/rest.ts";
 import { DiscordInteraction, getInteractionUserId } from "../discord/types.ts";
-import { ehLinhaCriador, liberarLinha } from "../domain/vagas.ts";
+import { atualizarResumoVagas, ehLinhaCriador, liberarLinha } from "../domain/vagas.ts";
 import { HandlerResult, extrairOpcoesDropdownInscricao } from "./context.ts";
 import { atualizarComponentesPainel } from "./ui.ts";
 
@@ -26,10 +26,11 @@ export function handleVagaDesistir(interaction: DiscordInteraction): HandlerResu
         !ehLinhaCriador(linha) && linha.includes(userMention) ? liberarLinha(linha) : linha
       );
 
-      const novosComponentes = await atualizarComponentesPainel(linhas, opcoesClasse, guildId);
+      const linhasFinais = atualizarResumoVagas(linhas);
+      const novosComponentes = await atualizarComponentesPainel(linhasFinais, opcoesClasse, guildId);
 
       await editarMensagem(canalId, mensagem.id, {
-        content: linhas.join("\n"),
+        content: linhasFinais.join("\n"),
         components: novosComponentes,
       });
     },

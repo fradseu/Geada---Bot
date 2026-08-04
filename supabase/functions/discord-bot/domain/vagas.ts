@@ -72,6 +72,41 @@ export function preencherLinha(vagaFormatada: string, mencaoUsuario: string): st
   return `(1/1) ${vagaFormatada} ${mencaoUsuario} `;
 }
 
+export const MARCADOR_RESUMO_VAGAS = "📊 **Vagas:**";
+export const MARCADOR_SALA_VOZ = "🔊 **Sala de Voz:**";
+
+// Conta quantas vagas estão preenchidas vs total, varrendo as linhas "(x/y)".
+export function contarVagas(linhas: string[]): { preenchidas: number; total: number } {
+  let preenchidas = 0;
+  let total = 0;
+
+  for (const linha of linhas) {
+    if (ehLinhaCriador(linha)) continue;
+    const match = linha.trim().match(/^\((\d+)\/(\d+)\)/);
+    if (!match) continue;
+    preenchidas += Number(match[1]);
+    total += Number(match[2]);
+  }
+
+  return { preenchidas, total };
+}
+
+// Recalcula e (re)insere a linha "📊 Vagas: (x/y)" logo abaixo do cabeçalho
+// "INSCRIÇÕES ABERTAS". Chamado toda vez que alguém entra/sai/é removido de
+// uma vaga, pra manter o contador sempre atualizado.
+export function atualizarResumoVagas(linhas: string[]): string[] {
+  const semResumo = linhas.filter((linha) => !linha.startsWith(MARCADOR_RESUMO_VAGAS));
+  const { preenchidas, total } = contarVagas(semResumo);
+  const linhaResumo = `${MARCADOR_RESUMO_VAGAS} (${preenchidas}/${total})`;
+
+  const indiceInscricoes = semResumo.findIndex((linha) => linha.includes("INSCRIÇÕES ABERTAS"));
+  if (indiceInscricoes === -1) return linhas; // cabeçalho não encontrado, não mexe
+
+  const novasLinhas = [...semResumo];
+  novasLinhas.splice(indiceInscricoes + 1, 0, linhaResumo);
+  return novasLinhas;
+}
+
 export interface JogadorInscrito {
   mention: string;
   cargo: string;

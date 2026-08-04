@@ -28,7 +28,7 @@ import {
   montarMapaEmojis,
   parseClasseComEmoji,
 } from "../domain/emoji.ts";
-import { gerarLinhasDaFuncao } from "../domain/vagas.ts";
+import { atualizarResumoVagas, gerarLinhasDaFuncao } from "../domain/vagas.ts";
 import { calcularDificuldade } from "../domain/dificuldade.ts";
 import { HandlerResult } from "./context.ts";
 import { montarBotoesBonus } from "./ui.ts";
@@ -82,13 +82,19 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
       const tituloFinal =
         dados.titulo && dados.titulo.length > 0 ? dados.titulo : "🔱 PROMPT DE CONTEÚDO";
 
+      const linhaDataHora =
+        dados.data || dados.hora
+          ? `🗓️ **Quando:** ${dados.data || "A definir"} às ${dados.hora || "A definir"}\n`
+          : "";
+
       const textoFinalPainel =
         `**${tituloFinal}**\n` +
         `👑 Criador: <@${liderId}>\n` +
         `📋 **Atividade:** ${dados.atividades.join(" + ")}\n` +
         `📍 **Ponto de Encontro:** ${dados.cidade}\n` +
-        `🗺️ **Ambiente:** ${dados.zona}\n\n` +
-        `⚔️ **REQUISITOS MÍNIMOS:**\n` +
+        `🗺️ **Ambiente:** ${dados.zona}\n` +
+        linhaDataHora +
+        `\n⚔️ **REQUISITOS MÍNIMOS:**\n` +
         `• **Builds tier:** ${dados.tier}\n` +
         `• **Set de Skip:** ${dados.precisaSkip ? "Obrigatório Mínimo T4" : "Dispensado"}\n\n` +
         `📝 **INSCRIÇÕES ABERTAS:**\n\n${textoVagas}\n` +
@@ -109,6 +115,13 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         style: ButtonStyle.Danger,
       };
 
+      const btnSalaVoz = {
+        type: 2 as const,
+        custom_id: "sala_voz_toggle",
+        label: "🔊 Criar Sala de Voz",
+        style: ButtonStyle.Primary,
+      };
+
       const dificuldadeInfo = calcularDificuldade(dados);
       const embeds: DiscordEmbed[] = dificuldadeInfo
         ? [{ image: { url: dificuldadeInfo.value } }]
@@ -124,10 +137,18 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         console.error("Erro ao criar o tópico do painel:", err);
       }
 
+      const linhasComResumo = atualizarResumoVagas(
+        aplicarEmojisNoTexto(textoFinalPainel).split("\n"),
+      );
+
       await enviarMensagem(canalDestinoId, {
-        content: aplicarEmojisNoTexto(textoFinalPainel),
+        content: linhasComResumo.join("\n"),
         embeds,
-        components: [actionRow(dropdownPublico), actionRow(btnDesistir), montarBotoesBonus()],
+        components: [
+          actionRow(dropdownPublico),
+          actionRow(btnDesistir, btnSalaVoz),
+          montarBotoesBonus(),
+        ],
       });
 
       await apagarEstadoWizard(liderId);

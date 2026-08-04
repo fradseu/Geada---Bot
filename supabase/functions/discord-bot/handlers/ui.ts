@@ -18,7 +18,7 @@ import {
   emojiParaComponente,
   parseClasseComEmoji,
 } from "../domain/emoji.ts";
-import { listarJogadoresInscritos } from "../domain/vagas.ts";
+import { MARCADOR_SALA_VOZ, listarJogadoresInscritos } from "../domain/vagas.ts";
 
 function opcoesParaSelect(opcoes: { label: string; value: string }[]): SelectOption[] {
   return opcoes.map((o) => ({ label: o.label, value: o.value }));
@@ -51,11 +51,12 @@ export function montarPayloadPasso1(dados: DadosWizard): InteractionCallbackData
     options: opcoesParaSelect(ZONAS),
   };
 
+  const temDetalhes = dados.titulo || dados.data || dados.hora;
   const botaoTitulo = {
     type: 2 as const,
     style: ButtonStyle.Secondary,
     custom_id: "btn_definir_titulo",
-    label: dados.titulo ? "✏️ Editar Título" : "✏️ Definir Título (Opcional)",
+    label: temDetalhes ? "✏️ Editar Título/Data/Hora" : "✏️ Definir Título/Data/Hora (Opcional)",
   };
 
   const botaoAvancar = {
@@ -68,11 +69,16 @@ export function montarPayloadPasso1(dados: DadosWizard): InteractionCallbackData
   const tituloExibido = dados.titulo
     ? `**${dados.titulo}**`
     : "*(usando o título padrão 🔱 PROMPT DE CONTEÚDO)*";
+  const dataHoraExibida =
+    dados.data || dados.hora
+      ? `📅 ${dados.data || "(sem data)"} ⏰ ${dados.hora || "(sem hora)"}`
+      : "*(não definida)*";
 
   return {
     content:
       `🛠️ **PASSO 1: Configuração Inicial**\n` +
-      `📌 Título: ${tituloExibido}\n\n` +
+      `📌 Título: ${tituloExibido}\n` +
+      `🗓️ Data/Hora: ${dataHoraExibida}\n\n` +
       `Defina os parâmetros do conteúdo usando os menus abaixo e clique em Avançar:`,
     components: [
       actionRow(menuAtividades),
@@ -84,10 +90,10 @@ export function montarPayloadPasso1(dados: DadosWizard): InteractionCallbackData
   };
 }
 
-export function montarModalTitulo(tituloAtual: string) {
+export function montarModalTitulo(dados: DadosWizard) {
   return {
     customId: "modal_titulo",
-    title: "Título da PT",
+    title: "Título / Data / Hora da PT",
     components: [
       actionRow({
         type: 4 as const,
@@ -97,7 +103,27 @@ export function montarModalTitulo(tituloAtual: string) {
         placeholder: "Ex: FIXA P/ RECÉM-CHEGADOS (APENAS RECÉM-CHEGADOS)",
         max_length: 150,
         required: false,
-        value: tituloAtual || undefined,
+        value: dados.titulo || undefined,
+      }),
+      actionRow({
+        type: 4 as const,
+        custom_id: "input_data",
+        style: TextInputStyle.Short,
+        label: "Data (opcional)",
+        placeholder: "Ex: 04/08/2026",
+        max_length: 20,
+        required: false,
+        value: dados.data || undefined,
+      }),
+      actionRow({
+        type: 4 as const,
+        custom_id: "input_hora",
+        style: TextInputStyle.Short,
+        label: "Horário (opcional)",
+        placeholder: "Ex: 20:30",
+        max_length: 10,
+        required: false,
+        value: dados.hora || undefined,
       }),
     ],
   };
@@ -331,13 +357,23 @@ export async function atualizarComponentesPainel(
     }),
   );
 
+  const temSalaDeVoz = linhas.some((linha) => linha.startsWith(MARCADOR_SALA_VOZ));
+
   componentes.push(
-    actionRow({
-      type: 2 as const,
-      custom_id: "vaga_publica_desistir",
-      label: "❌ Sair da PT",
-      style: ButtonStyle.Danger,
-    }),
+    actionRow(
+      {
+        type: 2 as const,
+        custom_id: "vaga_publica_desistir",
+        label: "❌ Sair da PT",
+        style: ButtonStyle.Danger,
+      },
+      {
+        type: 2 as const,
+        custom_id: "sala_voz_toggle",
+        label: temSalaDeVoz ? "🔒 Fechar Sala de Voz" : "🔊 Criar Sala de Voz",
+        style: temSalaDeVoz ? ButtonStyle.Secondary : ButtonStyle.Primary,
+      },
+    ),
   );
 
   componentes.push(montarBotoesBonus());

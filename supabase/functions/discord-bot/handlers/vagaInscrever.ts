@@ -4,6 +4,7 @@ import { buscarEmojisDaGuilda, editarMensagem, enviarFollowUp } from "../discord
 import { DiscordInteraction, getInteractionUserId } from "../discord/types.ts";
 import { formatarClasseParaMensagem, montarMapaEmojis } from "../domain/emoji.ts";
 import {
+  atualizarResumoVagas,
   ehLinhaCriador,
   encontrarIndiceVagaVazia,
   liberarLinha,
@@ -48,10 +49,11 @@ export function handleVagaInscrever(interaction: DiscordInteraction): HandlerRes
 
       linhas[indiceVagaVazia] = preencherLinha(vagaFormatada, userMention);
 
-      const novosComponentes = await atualizarComponentesPainel(linhas, opcoesClasse, guildId);
+      const linhasFinais = atualizarResumoVagas(linhas);
+      const novosComponentes = await atualizarComponentesPainel(linhasFinais, opcoesClasse, guildId);
 
       await editarMensagem(canalId, mensagem.id, {
-        content: linhas.join("\n"),
+        content: linhasFinais.join("\n"),
         components: novosComponentes,
       });
     },

@@ -75,13 +75,16 @@ export async function handleBtnDefinirTitulo(interaction: DiscordInteraction): P
   const dados = await obterEstadoWizard(liderId);
   if (!dados) return { immediate: reply(SESSAO_EXPIRADA, { ephemeral: true }) };
 
-  const modal = montarModalTitulo(dados.titulo);
+  const modal = montarModalTitulo(dados);
   return { immediate: showModal(modal.customId, modal.title, modal.components) };
 }
 
 export function handleModalTitulo(interaction: DiscordInteraction): HandlerResult {
   const liderId = getInteractionUserId(interaction);
-  const valor = interaction.data?.components?.[0]?.components?.[0]?.value ?? "";
+  const linhasModal = interaction.data?.components ?? [];
+  const valorTitulo = linhasModal[0]?.components?.[0]?.value ?? "";
+  const valorData = linhasModal[1]?.components?.[0]?.value ?? "";
+  const valorHora = linhasModal[2]?.components?.[0]?.value ?? "";
   const applicationId = interaction.application_id;
   const token = interaction.token;
 
@@ -94,7 +97,9 @@ export function handleModalTitulo(interaction: DiscordInteraction): HandlerResul
         return;
       }
 
-      dados.titulo = valor.trim();
+      dados.titulo = valorTitulo.trim();
+      dados.data = valorData.trim();
+      dados.hora = valorHora.trim();
       await salvarEstadoWizard(liderId, dados);
 
       const payload = montarPayloadPasso1(dados);

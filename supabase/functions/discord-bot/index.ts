@@ -43,6 +43,7 @@ import { handleVagaInscrever } from "./handlers/vagaInscrever.ts";
 import { handleVagaDesistir } from "./handlers/vagaDesistir.ts";
 import { handleVagaKickar } from "./handlers/vagaKickar.ts";
 import { handleBonusToggle } from "./handlers/bonusToggle.ts";
+import { handleSalaVozToggle } from "./handlers/salaVoz.ts";
 import { PAGINA_PRIVACIDADE, PAGINA_TERMOS } from "./paginasLegais.ts";
 import { enviarFollowUp } from "./discord/rest.ts";
 
@@ -84,6 +85,7 @@ async function rotear(interaction: DiscordInteraction): Promise<HandlerResult> {
     if (customId === "vaga_publica_inscrever") return handleVagaInscrever(interaction);
     if (customId === "vaga_publica_desistir") return handleVagaDesistir(interaction);
     if (customId === "vaga_publica_kickar") return handleVagaKickar(interaction);
+    if (customId === "sala_voz_toggle") return handleSalaVozToggle(interaction);
     if (customId.startsWith("bonus_")) {
       return handleBonusToggle(interaction, customId.replace("bonus_", ""));
     }

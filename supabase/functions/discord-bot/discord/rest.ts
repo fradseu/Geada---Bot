@@ -79,6 +79,20 @@ export async function criarTopico(
   return res.json();
 }
 
+// Cria um canal de voz num servidor. type: 2 = GUILD_VOICE.
+export async function criarCanalVoz(guildId: string, nome: string): Promise<{ id: string }> {
+  const res = await discordFetch(`/guilds/${guildId}/channels`, {
+    method: "POST",
+    body: JSON.stringify({ name: nome.slice(0, 100), type: 2 }),
+  });
+  return res.json();
+}
+
+// Apaga um canal (usado pra fechar a sala de voz).
+export async function apagarCanal(canalId: string): Promise<void> {
+  await discordFetch(`/channels/${canalId}`, { method: "DELETE" });
+}
+
 // Edita a resposta original de uma interação (a mensagem criada pelo
 // deferredReply/reply inicial) — usa o webhook da própria interação, não
 // precisa saber o id da mensagem.
