@@ -2,7 +2,7 @@
 // do Discord chega AQUI como uma requisição POST avulsa (nada de conexão
 // permanente/gateway, diferente do v1).
 //
-// (bump trivial pra testar o deploy automático via GitHub Action)
+// (bump trivial pra testar o deploy automatico via GitHub Action - v2)
 //
 // Fluxo de toda requisição:
 //   1. Verifica a assinatura Ed25519 (garante que veio mesmo do Discord)
