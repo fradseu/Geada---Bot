@@ -79,6 +79,32 @@ export function emojiParaComponente(emoji: EmojiResolvido | null): DiscordEmoji 
   return { id: emoji.id, name: emoji.name, animated: emoji.animated };
 }
 
+// Ordem de exibição dos grupos de classe, do topo pra baixo. Tag que não
+// estiver aqui (não deveria acontecer) vai pro final.
+const ORDEM_GRUPOS: Record<string, number> = {
+  defensivo: 0,
+  curandeiro: 1,
+  suporte: 2,
+  arcolongo: 3,
+  lutador: 4,
+};
+
+// Ordena classes primeiro por grupo (tag), depois alfabeticamente pelo nome
+// dentro do grupo. Usado em toda lista de classes (Passo 3, dropdown de
+// foco, lista final de vagas) pra ficar sempre na mesma ordem consistente.
+export function compararClasses(a: string, b: string): number {
+  const matchA = a.match(/^:(\w+):\s*(.+)$/);
+  const matchB = b.match(/^:(\w+):\s*(.+)$/);
+  const [tagA, nomeA] = matchA ? [matchA[1].toLowerCase(), matchA[2].trim()] : ["", a];
+  const [tagB, nomeB] = matchB ? [matchB[1].toLowerCase(), matchB[2].trim()] : ["", b];
+
+  const ordemA = ORDEM_GRUPOS[tagA] ?? 99;
+  const ordemB = ORDEM_GRUPOS[tagB] ?? 99;
+  if (ordemA !== ordemB) return ordemA - ordemB;
+
+  return nomeA.localeCompare(nomeB, "pt-BR");
+}
+
 // Rede de segurança: varre um texto inteiro e troca QUALQUER tag ":algo:"
 // cadastrada em EMOJIS_FUNCAO pelo código de emoji real "<:algo:id>". Roda
 // bem antes de qualquer envio/edição de mensagem, garantindo que nenhuma tag

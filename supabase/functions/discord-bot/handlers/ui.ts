@@ -15,6 +15,7 @@ import {
 import { DadosWizard } from "../db/ptWizard.ts";
 import {
   EmojiResolvido,
+  compararClasses,
   emojiParaComponente,
   parseClasseComEmoji,
 } from "../domain/emoji.ts";
@@ -230,7 +231,7 @@ export function montarPayloadPasso2(dados: DadosWizard): InteractionCallbackData
 export function montarPayloadPasso3Selecao(
   emojisResolvidos: Map<string, EmojiResolvido>,
 ): InteractionCallbackData {
-  const opcoes: SelectOption[] = FUNCOES.slice(0, 25).map((classe) => {
+  const opcoes: SelectOption[] = [...FUNCOES].sort(compararClasses).slice(0, 25).map((classe) => {
     const { nome, emoji } = parseClasseComEmoji(classe, emojisResolvidos);
     return { label: nome, value: classe, emoji: emojiParaComponente(emoji) };
   });
@@ -270,7 +271,7 @@ export function montarPayloadPasso3Painel(
   // componentes por mensagem. Um select cabe até 25 opções numa linha só.
   const linhasBotoes: ActionRowComponent[] = [];
 
-  const opcoesFoco: SelectOption[] = classesAtivas.map((classe) => {
+  const opcoesFoco: SelectOption[] = [...classesAtivas].sort(compararClasses).map((classe) => {
     const qtd = dados.funcoes[classe] ?? 1;
     const { nome, emoji } = parseClasseComEmoji(classe, emojisResolvidos);
     return {

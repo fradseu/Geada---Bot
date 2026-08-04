@@ -30,6 +30,7 @@ import {
 import { apagarEstadoWizard, obterEstadoWizard } from "../db/ptWizard.ts";
 import {
   aplicarEmojisNoTexto,
+  compararClasses,
   emojiParaComponente,
   montarMapaEmojis,
   parseClasseComEmoji,
@@ -57,7 +58,9 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         return;
       }
 
-      const vagasFiltradas = Object.entries(dados.funcoes).filter(([, qtd]) => qtd > 0);
+      const vagasFiltradas = Object.entries(dados.funcoes)
+        .filter(([, qtd]) => qtd > 0)
+        .sort(([a], [b]) => compararClasses(a, b));
       if (vagasFiltradas.length === 0) {
         await enviarFollowUp(applicationId, token, {
           content:
