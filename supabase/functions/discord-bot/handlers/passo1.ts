@@ -1,8 +1,12 @@
 // passo1.ts - Configuração inicial (atividades/cidade/zona), título via modal,
 // e transição pro Passo 2. Equivalente aos blocos "Salvando Passo 1",
 // "Transição do Passo 1 para o Passo 2" e "TÍTULO/DESCRIÇÃO CUSTOMIZADO" do v1.
-import { deferredUpdate, reply, showModal, updateMessage } from "../discord/responses.ts";
-import { editarRespostaOriginal } from "../discord/rest.ts";
+//
+// Padrão em todo handler aqui: confirma a interação IMEDIATAMENTE (defer) e
+// só faz leitura/escrita no banco depois, em background — uma escrita no
+// Postgres pode passar de 1s num cold start, e o Discord só dá 3s pra ackar.
+import { deferredUpdate, reply, showModal } from "../discord/responses.ts";
+import { editarRespostaOriginal, enviarFollowUp } from "../discord/rest.ts";
 import { DiscordInteraction, getInteractionUserId } from "../discord/types.ts";
 import { obterEstadoWizard, salvarEstadoWizard } from "../db/ptWizard.ts";
 import { HandlerResult } from "./context.ts";
@@ -10,52 +14,62 @@ import { montarModalTitulo, montarPayloadPasso1, montarPayloadPasso2 } from "./u
 
 const SESSAO_EXPIRADA = "⚠️ Sessão expirada — use /conteudo de novo pra começar.";
 
-export async function handleConfigSelect(
+export function handleConfigSelect(
   interaction: DiscordInteraction,
   customId: "config_atividade" | "config_cidade" | "config_zona",
-): Promise<HandlerResult> {
+): HandlerResult {
   const liderId = getInteractionUserId(interaction);
-  const dados = await obterEstadoWizard(liderId);
-  if (!dados) return { immediate: reply(SESSAO_EXPIRADA, { ephemeral: true }) };
-
   const valores = interaction.data?.values ?? [];
-  if (customId === "config_atividade") dados.atividades = valores;
-  if (customId === "config_cidade") dados.cidade = valores[0] ?? "";
-  if (customId === "config_zona") dados.zona = valores[0] ?? "";
 
-  await salvarEstadoWizard(liderId, dados);
+  return {
+    immediate: deferredUpdate(),
+    background: async () => {
+      const dados = await obterEstadoWizard(liderId);
+      if (!dados) return; // sessão expirada — sem mensagem original pra corrigir, só ignora
 
-  // Igual o v1: só confirma o clique, o próprio Discord já mostra a seleção
-  // no dropdown — não precisa reescrever o conteúdo da mensagem.
-  return { immediate: deferredUpdate() };
+      if (customId === "config_atividade") dados.atividades = valores;
+      if (customId === "config_cidade") dados.cidade = valores[0] ?? "";
+      if (customId === "config_zona") dados.zona = valores[0] ?? "";
+
+      await salvarEstadoWizard(liderId, dados);
+      // Igual o v1: o próprio Discord já mostra a seleção no dropdown, não
+      // precisa reescrever o conteúdo da mensagem.
+    },
+  };
 }
 
-export async function handleBtnPasso2(interaction: DiscordInteraction): Promise<HandlerResult> {
+export function handleBtnPasso2(interaction: DiscordInteraction): HandlerResult {
   const liderId = getInteractionUserId(interaction);
-  const dados = await obterEstadoWizard(liderId);
-  if (!dados) return { immediate: reply(SESSAO_EXPIRADA, { ephemeral: true }) };
-
-  if (dados.atividades.length === 0 || !dados.cidade || !dados.zona) {
-    return {
-      immediate: reply(
-        "⚠️ **Faltam dados!** Selecione pelo menos uma Atividade, Cidade e Zona antes de avançar.",
-        { ephemeral: true },
-      ),
-    };
-  }
-
   const applicationId = interaction.application_id;
   const token = interaction.token;
 
   return {
     immediate: deferredUpdate(),
     background: async () => {
+      const dados = await obterEstadoWizard(liderId);
+      if (!dados) {
+        await enviarFollowUp(applicationId, token, { content: SESSAO_EXPIRADA, flags: 64 });
+        return;
+      }
+
+      if (dados.atividades.length === 0 || !dados.cidade || !dados.zona) {
+        await enviarFollowUp(applicationId, token, {
+          content:
+            "⚠️ **Faltam dados!** Selecione pelo menos uma Atividade, Cidade e Zona antes de avançar.",
+          flags: 64,
+        });
+        return;
+      }
+
       const payload = montarPayloadPasso2(dados);
       await editarRespostaOriginal(applicationId, token, payload);
     },
   };
 }
 
+// Modal precisa ser a resposta IMEDIATA (o Discord não permite defer antes de
+// abrir um modal), então essa é a única leitura de banco que continua síncrona
+// aqui — é uma leitura simples por chave primária, rápida o bastante.
 export async function handleBtnDefinirTitulo(interaction: DiscordInteraction): Promise<HandlerResult> {
   const liderId = getInteractionUserId(interaction);
   const dados = await obterEstadoWizard(liderId);
@@ -65,15 +79,26 @@ export async function handleBtnDefinirTitulo(interaction: DiscordInteraction): P
   return { immediate: showModal(modal.customId, modal.title, modal.components) };
 }
 
-export async function handleModalTitulo(interaction: DiscordInteraction): Promise<HandlerResult> {
+export function handleModalTitulo(interaction: DiscordInteraction): HandlerResult {
   const liderId = getInteractionUserId(interaction);
-  const dados = await obterEstadoWizard(liderId);
-  if (!dados) return { immediate: reply(SESSAO_EXPIRADA, { ephemeral: true }) };
-
   const valor = interaction.data?.components?.[0]?.components?.[0]?.value ?? "";
-  dados.titulo = valor.trim();
-  await salvarEstadoWizard(liderId, dados);
+  const applicationId = interaction.application_id;
+  const token = interaction.token;
 
-  const payload = montarPayloadPasso1(dados);
-  return { immediate: updateMessage(payload.content ?? "", payload.components ?? []) };
+  return {
+    immediate: deferredUpdate(),
+    background: async () => {
+      const dados = await obterEstadoWizard(liderId);
+      if (!dados) {
+        await enviarFollowUp(applicationId, token, { content: SESSAO_EXPIRADA, flags: 64 });
+        return;
+      }
+
+      dados.titulo = valor.trim();
+      await salvarEstadoWizard(liderId, dados);
+
+      const payload = montarPayloadPasso1(dados);
+      await editarRespostaOriginal(applicationId, token, payload);
+    },
+  };
 }

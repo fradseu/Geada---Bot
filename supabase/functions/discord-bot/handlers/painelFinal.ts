@@ -1,15 +1,16 @@
 // painelFinal.ts - Gera o painel público (equivalente ao "PASSO FINAL:
 // ENVIAR O PAINEL DE INSCRIÇÃO PÚBLICO" do v1).
 //
-// Melhoria sobre o v1: lá o clique só era confirmado DEPOIS de criar o
-// tópico e mandar a mensagem (risco real de estourar os 3s do Discord).
-// Aqui confirmamos o clique na hora (deferredUpdate) e fazemos todo o
-// trabalho pesado em background, editando a resposta original no final.
-import { deferredUpdate, reply } from "../discord/responses.ts";
+// Confirma o clique IMEDIATAMENTE (deferredUpdate) e faz todo o trabalho
+// pesado (ler wizard, buscar emojis, criar tópico, enviar mensagem, apagar
+// wizard) em background — qualquer uma dessas chamadas sozinha já pode passar
+// de 1s num cold start, e juntas estourariam fácil os 3s do Discord.
+import { deferredUpdate } from "../discord/responses.ts";
 import {
   buscarEmojisDaGuilda,
   criarTopico,
   editarRespostaOriginal,
+  enviarFollowUp,
   enviarMensagem,
 } from "../discord/rest.ts";
 import {
@@ -34,21 +35,8 @@ import { montarBotoesBonus } from "./ui.ts";
 
 const SESSAO_EXPIRADA = "⚠️ Sessão expirada — use /conteudo de novo pra começar.";
 
-export async function handleGerarPainelFinal(interaction: DiscordInteraction): Promise<HandlerResult> {
+export function handleGerarPainelFinal(interaction: DiscordInteraction): HandlerResult {
   const liderId = getInteractionUserId(interaction);
-  const dados = await obterEstadoWizard(liderId);
-  if (!dados) return { immediate: reply(SESSAO_EXPIRADA, { ephemeral: true }) };
-
-  const vagasFiltradas = Object.entries(dados.funcoes).filter(([, qtd]) => qtd > 0);
-  if (vagasFiltradas.length === 0) {
-    return {
-      immediate: reply(
-        "⚠️ Você precisa adicionar pelo menos 1 vaga na composição da sua PT antes de gerar o painel!",
-        { ephemeral: true },
-      ),
-    };
-  }
-
   const applicationId = interaction.application_id;
   const token = interaction.token;
   const guildId = interaction.guild_id;
@@ -56,6 +44,22 @@ export async function handleGerarPainelFinal(interaction: DiscordInteraction): P
   return {
     immediate: deferredUpdate(),
     background: async () => {
+      const dados = await obterEstadoWizard(liderId);
+      if (!dados) {
+        await enviarFollowUp(applicationId, token, { content: SESSAO_EXPIRADA, flags: 64 });
+        return;
+      }
+
+      const vagasFiltradas = Object.entries(dados.funcoes).filter(([, qtd]) => qtd > 0);
+      if (vagasFiltradas.length === 0) {
+        await enviarFollowUp(applicationId, token, {
+          content:
+            "⚠️ Você precisa adicionar pelo menos 1 vaga na composição da sua PT antes de gerar o painel!",
+          flags: 64,
+        });
+        return;
+      }
+
       const emojisGuilda = guildId ? await buscarEmojisDaGuilda(guildId) : [];
       const mapaEmojis = montarMapaEmojis(emojisGuilda);
 
