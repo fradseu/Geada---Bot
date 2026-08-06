@@ -68,10 +68,11 @@ export function handleSalaVozToggle(interaction: DiscordInteraction): HandlerRes
         }
       } catch (err) {
         console.error("Erro ao gerenciar sala de voz:", err);
+        const detalhe = err instanceof Error ? err.stack ?? err.message : String(err);
         await enviarFollowUp(applicationId, token, {
           content:
-            `⚠️ Não consegui ${salaExistenteId ? "fechar" : "criar"} a sala de voz. ` +
-            `O bot tem a permissão **Gerenciar Canais** nesse servidor?`,
+            `⚠️ Não consegui ${salaExistenteId ? "fechar" : "criar"} a sala de voz.\n` +
+            `\`\`\`${detalhe.slice(0, 1900)}\`\`\``,
           flags: 64,
         });
         return;
