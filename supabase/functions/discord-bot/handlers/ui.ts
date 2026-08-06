@@ -6,6 +6,7 @@ import { ATIVIDADES, BONUS, CIDADES, FUNCOES, ZONAS } from "../config.ts";
 import { buscarMembro, nomeExibicaoMembro } from "../discord/rest.ts";
 import {
   ActionRowComponent,
+  ButtonComponent,
   ButtonStyle,
   InteractionCallbackData,
   SelectOption,
@@ -376,13 +377,15 @@ export async function atualizarComponentesPainel(
     }),
   );
 
-  const temSalaDeVoz = conteudoAtual
+  const linhaSalaDeVoz = conteudoAtual
     .split("\n")
-    .some((linha) => linha.startsWith(MARCADOR_SALA_VOZ));
+    .find((linha) => linha.startsWith(MARCADOR_SALA_VOZ));
+  const canalVozId = linhaSalaDeVoz?.match(/<#(\d+)>/)?.[1];
+  const temSalaDeVoz = Boolean(canalVozId);
 
-  // Essa linha (Sair da PT + Sala de Voz) vai por ÚLTIMA — só monta agora,
-  // empurra pro final da lista de componentes depois do resto.
-  const rowDesistirESala = actionRow(
+  // Essa linha (Sair da PT + Sala de Voz [+ Entrar, se existir]) vai por
+  // ÚLTIMA — só monta agora, empurra pro final da lista de componentes.
+  const botoesDesistirESala: ButtonComponent[] = [
     {
       type: 2 as const,
       custom_id: "vaga_publica_desistir",
@@ -395,7 +398,20 @@ export async function atualizarComponentesPainel(
       label: temSalaDeVoz ? "🔒 Fechar Sala de Voz" : "🔊 Criar Sala de Voz",
       style: temSalaDeVoz ? ButtonStyle.Secondary : ButtonStyle.Primary,
     },
-  );
+  ];
+
+  // Botão de link direto pro canal de voz — só aparece quando a sala existe.
+  // Botões de link não disparam interação nenhuma, o Discord navega sozinho.
+  if (temSalaDeVoz && canalVozId && guildId) {
+    botoesDesistirESala.push({
+      type: 2 as const,
+      label: "🎧 Entrar na Sala",
+      style: ButtonStyle.Link,
+      url: `https://discord.com/channels/${guildId}/${canalVozId}`,
+    });
+  }
+
+  const rowDesistirESala = actionRow(...botoesDesistirESala);
 
   componentes.push(montarBotoesBonus());
 
