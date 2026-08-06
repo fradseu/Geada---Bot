@@ -109,12 +109,20 @@ export function compararClasses(a: string, b: string): number {
 // cadastrada em EMOJIS_FUNCAO pelo código de emoji real "<:algo:id>". Roda
 // bem antes de qualquer envio/edição de mensagem, garantindo que nenhuma tag
 // crua sobre no painel, venha o texto de onde vier.
+//
+// ⚠️ Cuidado: um "<:algo:id>" já formatado CONTÉM o texto ":algo:" dentro
+// dele. Sem a primeira alternativa do regex abaixo, essa função reprocessava
+// o que já estava certo e duplicava/corrompia (ex: "<<:algo:id>id>"), o que
+// também quebrava a comparação de vaga vazia (chaveFuncao não reconhecia o
+// resultado corrompido, dando falso "vaga já lotada").
 export function aplicarEmojisNoTexto(texto: string): string {
-  return texto.replace(/:(\w+):/g, (original, tag) => {
-    const idBruto = EMOJIS_FUNCAO[tag];
-    if (!idBruto) return original;
+  return texto.replace(/<a?:\w+:\d+>|:(\w+):/g, (match, tagCrua) => {
+    if (tagCrua === undefined) return match; // já é <a?:tag:id> válido, não mexe
+
+    const idBruto = EMOJIS_FUNCAO[tagCrua];
+    if (!idBruto) return match;
     const animated = idBruto.startsWith("a:");
     const id = idBruto.replace(/^a:/, "");
-    return `<${animated ? "a" : ""}:${tag}:${id}>`;
+    return `<${animated ? "a" : ""}:${tagCrua}:${id}>`;
   });
 }
