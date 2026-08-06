@@ -4,8 +4,15 @@
 // mensagem (não no embed — a lista de vagas não muda aqui) — não precisa de
 // banco pra lembrar disso, a mensagem já é a fonte da verdade.
 import { deferredUpdate, reply } from "../discord/responses.ts";
-import { apagarCanal, criarCanalVoz, editarMensagem, enviarFollowUp } from "../discord/rest.ts";
+import {
+  apagarCanal,
+  criarCanalVoz,
+  editarMensagem,
+  enviarFollowUp,
+  obterOuCriarCategoria,
+} from "../discord/rest.ts";
 import { DiscordInteraction, getInteractionUserId } from "../discord/types.ts";
+import { NOME_CATEGORIA_SALAS_VOZ } from "../config.ts";
 import { MARCADOR_SALA_VOZ } from "../domain/vagas.ts";
 import {
   HandlerResult,
@@ -47,7 +54,8 @@ export function handleSalaVozToggle(interaction: DiscordInteraction): HandlerRes
           await apagarCanal(salaExistenteId);
         } else {
           const tituloBruto = linhasContent[0]?.replace(/\*\*/g, "").trim() || "PT";
-          const canal = await criarCanalVoz(guildId, `🔊 ${tituloBruto}`);
+          const categoriaId = await obterOuCriarCategoria(guildId, NOME_CATEGORIA_SALAS_VOZ);
+          const canal = await criarCanalVoz(guildId, `🔊 ${tituloBruto}`, categoriaId);
 
           // Insere logo antes de "REQUISITOS MÍNIMOS" — sempre presente no painel.
           const indiceRequisitos = linhasContent.findIndex((l) => l.includes("REQUISITOS MÍNIMOS"));

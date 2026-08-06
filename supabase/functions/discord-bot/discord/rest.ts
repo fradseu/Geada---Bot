@@ -79,11 +79,20 @@ export async function criarTopico(
   return res.json();
 }
 
-// Cria um canal de voz num servidor. type: 2 = GUILD_VOICE.
-export async function criarCanalVoz(guildId: string, nome: string): Promise<{ id: string }> {
+// Cria um canal de voz num servidor. type: 2 = GUILD_VOICE. `parentId`
+// (opcional) coloca o canal dentro de uma categoria específica.
+export async function criarCanalVoz(
+  guildId: string,
+  nome: string,
+  parentId?: string,
+): Promise<{ id: string }> {
   const res = await discordFetch(`/guilds/${guildId}/channels`, {
     method: "POST",
-    body: JSON.stringify({ name: nome.slice(0, 100), type: 2 }),
+    body: JSON.stringify({
+      name: nome.slice(0, 100),
+      type: 2,
+      ...(parentId ? { parent_id: parentId } : {}),
+    }),
   });
   return res.json();
 }
@@ -91,6 +100,40 @@ export async function criarCanalVoz(guildId: string, nome: string): Promise<{ id
 // Apaga um canal (usado pra fechar a sala de voz).
 export async function apagarCanal(canalId: string): Promise<void> {
   await discordFetch(`/channels/${canalId}`, { method: "DELETE" });
+}
+
+export interface CanalGuilda {
+  id: string;
+  name: string;
+  type: number;
+}
+
+export async function listarCanaisDaGuilda(guildId: string): Promise<CanalGuilda[]> {
+  const res = await discordFetch(`/guilds/${guildId}/channels`);
+  return res.json();
+}
+
+// type: 4 = GUILD_CATEGORY.
+export async function criarCategoria(guildId: string, nome: string): Promise<{ id: string }> {
+  const res = await discordFetch(`/guilds/${guildId}/channels`, {
+    method: "POST",
+    body: JSON.stringify({ name: nome.slice(0, 100), type: 4 }),
+  });
+  return res.json();
+}
+
+// Acha a categoria pelo nome (sem diferenciar maiúsculas/minúsculas); se não
+// existir, cria. Assim toda sala de voz de PT nasce sempre no mesmo lugar,
+// sem precisar guardar/configurar nenhum ID de categoria.
+export async function obterOuCriarCategoria(guildId: string, nome: string): Promise<string> {
+  const canais = await listarCanaisDaGuilda(guildId);
+  const existente = canais.find(
+    (c) => c.type === 4 && c.name.toLowerCase() === nome.toLowerCase(),
+  );
+  if (existente) return existente.id;
+
+  const nova = await criarCategoria(guildId, nome);
+  return nova.id;
 }
 
 // Edita a resposta original de uma interação (a mensagem criada pelo

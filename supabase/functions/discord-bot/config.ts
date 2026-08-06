@@ -21,6 +21,12 @@ export interface BonusConfig {
   emoji: string;
 }
 
+// Nome da categoria onde as salas de voz de PT são criadas. O bot procura
+// por esse nome (sem diferenciar maiúsculas/minúsculas); se não achar, cria
+// a categoria do zero. Precisa bater com o nome exato da categoria já
+// existente no servidor, se quiser reusar ela.
+export const NOME_CATEGORIA_SALAS_VOZ = "⸻🔹  SALA DE VOZ  🔹⸻";
+
 // IDs dos emojis customizados do servidor usados nas tags (":arcolongo:", ":curandeiro:" etc)
 // dentro de FUNCOES. Usado tanto pra montar o texto da mensagem quanto os labels
 // de botão/dropdown. Prefixo "a:" na frente do id = emoji animado.
