@@ -165,6 +165,13 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
         canalDestinoId = topico.id;
       } catch (err) {
         console.error("Erro ao criar o tópico do painel:", err);
+        const detalhe = err instanceof Error ? err.message : String(err);
+        await enviarFollowUp(applicationId, token, {
+          content:
+            `⚠️ Não consegui criar o tópico do painel, vou tentar mandar direto no canal.\n` +
+            `\`\`\`${detalhe.slice(0, 1900)}\`\`\``,
+          flags: 64,
+        });
       }
 
       await enviarMensagem(canalDestinoId, {
