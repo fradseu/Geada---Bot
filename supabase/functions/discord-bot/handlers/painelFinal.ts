@@ -27,7 +27,8 @@ import {
   actionRow,
   getInteractionUserId,
 } from "../discord/types.ts";
-import { apagarEstadoWizard, obterEstadoWizard } from "../db/ptWizard.ts";
+import { apagarEstadoWizard, DadosWizard, obterEstadoWizard } from "../db/ptWizard.ts";
+import { ZONAS } from "../config.ts";
 import {
   aplicarEmojisNoTexto,
   compararClasses,
@@ -42,6 +43,15 @@ import { montarBotoesBonus } from "./ui.ts";
 
 const SESSAO_EXPIRADA = "⚠️ Sessão expirada — use /conteudo de novo pra começar.";
 const LIMITE_EMBED_DESCRIPTION = 4096;
+
+// Quando o líder não edita o título manualmente, monta um a partir da
+// composição da PT (zona | atividades | cidade) em vez do genérico antigo —
+// fica muito mais informativo pra quem só bate o olho no canal/tópico.
+function montarTituloAutomatico(dados: DadosWizard): string {
+  const zonaInfo = ZONAS.find((z) => z.value === dados.zona);
+  const zonaTexto = zonaInfo?.label ?? dados.zona;
+  return `${zonaTexto} | ${dados.atividades.join(" + ")} | ${dados.cidade}`;
+}
 
 export function handleGerarPainelFinal(interaction: DiscordInteraction): HandlerResult {
   const liderId = getInteractionUserId(interaction);
@@ -90,7 +100,7 @@ export function handleGerarPainelFinal(interaction: DiscordInteraction): Handler
       }
 
       const tituloFinal =
-        dados.titulo && dados.titulo.length > 0 ? dados.titulo : "🔱 PROMPT DE CONTEÚDO";
+        dados.titulo && dados.titulo.length > 0 ? dados.titulo : montarTituloAutomatico(dados);
 
       const linhaDataHora =
         dados.data || dados.hora
